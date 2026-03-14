@@ -8,10 +8,10 @@ services:
     image: searxng-mcp:latest
     container_name: searxng-mcp
 
-    # Port mappings
+    # Port mappings - bind to localhost only for security
     ports:
-      - "8080:8080"  # SearXNG web UI
-      - "3000:3000"  # MCP HTTP transport (optional)
+      - "127.0.0.1:8080:8080"  # SearXNG web UI (localhost only)
+      - "127.0.0.1:3000:3000"  # MCP HTTP transport (localhost only)
 
     # Extra hosts - allow container to access host machine
     # host.docker.internal resolves to the host machine IP
