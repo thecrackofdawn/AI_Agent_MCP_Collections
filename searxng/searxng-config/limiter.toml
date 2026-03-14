@@ -1,0 +1,7 @@
+# SearXNG Limiter Configuration
+[botdetection.ip_limit]
+filter_link_local = true
+link_token = false
+
+[botdetection.ip_lists]
+pass_ip = ["0.0.0.0/0", "::/0"]

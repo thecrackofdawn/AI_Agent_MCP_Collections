@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  searxng-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: searxng-mcp:latest
+    container_name: searxng-mcp
+
+    # Port mappings
+    ports:
+      - "8080:8080"  # SearXNG web UI
+      - "3000:3000"  # MCP HTTP transport (optional)
+
+    # Extra hosts - allow container to access host machine
+    # host.docker.internal resolves to the host machine IP
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # Environment variables
+    environment:
+      - SEARXNG_URL=http://localhost:8080
+      - MCP_HTTP_PORT=3000  # Enable HTTP transport for MCP server
+
+      # Proxy configuration - pass host proxy to container
+      # These will be auto-converted to host.docker.internal if they use localhost/127.0.0.1
+      - HOST_HTTP_PROXY=${HTTP_PROXY}
+      - HOST_HTTPS_PROXY=${HTTPS_PROXY}
+      - HOST_ALL_PROXY=${ALL_PROXY}
+
+      # Optional: Add authentication for MCP server
+      # - AUTH_USERNAME=your_username
+      # - AUTH_PASSWORD=your_password
+
+      # Optional: SearXNG configuration
+      # - INSTANCE_NAME=SearXNG+MCP
+      # - AUTOCOMPLETE=1
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Health check - test both SearXNG and MCP JSON endpoints
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/search?q=test&format=json > /dev/null 2>&1 || curl -f http://localhost:3000/health > /dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
