@@ -40,6 +40,10 @@ services:
     # Restart policy
     restart: unless-stopped
 
+    # Volume mounts - persist SearXNG configuration
+    volumes:
+      - ./searxng-config:/etc/searxng
+
     # Health check - test both SearXNG and MCP JSON endpoints
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/search?q=test&format=json > /dev/null 2>&1 || curl -f http://localhost:3000/health > /dev/null 2>&1"]
