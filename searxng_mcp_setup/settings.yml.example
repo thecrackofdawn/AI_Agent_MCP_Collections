@@ -1,0 +1,62 @@
+# Sample SearXNG Configuration
+# Place this file at: searxng-config/settings.yml
+# See: https://docs.searxng.org/admin/settings/
+
+# General settings
+use_default_settings: true
+general:
+  instance_name: "SearXNG + MCP"
+  contact_url: false
+
+  # Enable privacy features
+  enable_metrics: false
+
+  # Limit results
+  max_request_timeout: 3.0
+
+# Search settings
+search:
+  safe_search: 0
+  autocomplete: ""
+  min_length_of_query: 3
+
+# Server settings
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "CHANGE_THIS_TO_RANDOM_STRING"
+  method: "GET"
+  http_protocol_version: "1.1"
+
+  # Limits
+  image_proxy: true
+  limit_request: 0
+  access_log: true
+
+  # Headers
+  csp: true
+
+# UI settings
+ui:
+  theme_args:
+    simple_style: auto
+
+  # Infinite scroll
+  infinite_scroll: true
+
+  # Results on new tab
+  results_on_new_tab: false
+
+  # Search URL
+  search_url: "/"
+
+# Enabled engines (you can customize this list)
+engines:
+  - name: duckduckgo
+  - name: google
+  - name: bing
+  - name: wikipedia
+  - name: wikidata
+
+# For more configuration options, see:
+# https://docs.searxng.org/admin/settings/
