@@ -9,7 +9,7 @@ general:
 
 # Server settings
 server:
-  port: 8080
+  port: 3001
   bind_address: "0.0.0.0"
   secret_key: "edcad06945e4696ae95c9e4a2bb4ac92242b4be00a41286ad73753c3d34b3df4"
   method: "GET"

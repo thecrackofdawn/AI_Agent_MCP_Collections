@@ -16,7 +16,7 @@ LABEL description="Combined SearXNG web UI with MCP server integration (Ubuntu-b
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set environment variables
-ENV SEARXNG_URL=http://localhost:8080
+ENV SEARXNG_URL=http://localhost:3001
 ENV MCP_HTTP_PORT=3000
 
 # Install system dependencies
@@ -83,16 +83,16 @@ COPY searxng-config/settings.yml /etc/searxng/settings.yml
 RUN chmod 644 /etc/searxng/settings.yml
 
 # Expose ports
-# 8080 - SearXNG web UI and API
+# 3001 - SearXNG web UI and API
 # 3000 - MCP HTTP transport
-EXPOSE 8080 3000
+EXPOSE 3001 3000
 
 # Set working directory
 WORKDIR /etc/searxng
 
 # Health check - test JSON format API
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f "http://localhost:8080/search?q=test&format=json" || exit 1
+    CMD curl -f "http://localhost:3001/search?q=test&format=json" || exit 1
 
 # Run entrypoint script
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

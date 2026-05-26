@@ -288,7 +288,7 @@ check_docker() {
 check_ports() {
     log_step "检查端口占用"
 
-    local ports=("8080" "3000")
+    local ports=("3001" "3000")
     local port_in_use=()
 
     for port in "${ports[@]}"; do
@@ -316,7 +316,7 @@ check_ports() {
         fi
     fi
 
-    log_success "端口 8080 和 3000 可用"
+    log_success "端口 3001 和 3000 可用"
 }
 
 stop_existing_containers() {
@@ -396,9 +396,9 @@ convert_proxy_for_build() {
 
     log_info "转换代理地址用于 Docker 构建..."
 
-    # 构建时：localhost → 172.17.0.1 (Docker bridge)
-    BUILD_PROXY_HTTP=$(echo "$PROXY_HTTP" | sed 's|://localhost:|://172.17.0.1:|' | sed 's|://127.0.0.1:|://172.17.0.1:|')
-    BUILD_PROXY_HTTPS=$(echo "$PROXY_HTTPS" | sed 's|://localhost:|://172.17.0.1:|' | sed 's|://127.0.0.1:|://172.17.0.1:|')
+    # 构建时：localhost → host.docker.internal（通过 --add-host 注入解析）
+    BUILD_PROXY_HTTP=$(echo "$PROXY_HTTP" | sed 's|://localhost:|://host.docker.internal:|' | sed 's|://127\.0\.0\.1:|://host.docker.internal:|')
+    BUILD_PROXY_HTTPS=$(echo "$PROXY_HTTPS" | sed 's|://localhost:|://host.docker.internal:|' | sed 's|://127\.0\.0\.1:|://host.docker.internal:|')
 
     log_verbose "构建代理:"
     log_verbose "  HTTP_PROXY=$BUILD_PROXY_HTTP"
@@ -497,6 +497,9 @@ build_image() {
 
     local build_args=""
     local build_cmd="docker build"
+
+    # 添加 --add-host 让 host.docker.internal 在构建时可用
+    build_args="$build_args --add-host=host.docker.internal:host-gateway"
 
     # 添加代理参数
     if [ -n "$BUILD_PROXY_HTTP" ]; then
@@ -623,8 +626,8 @@ wait_for_services() {
 test_searxng() {
     log_step "测试 SearXNG 服务"
 
-    if curl -f -s http://localhost:8080 >/dev/null 2>&1; then
-        log_success "SearXNG Web UI: http://localhost:8080"
+    if curl -f -s http://localhost:3001 >/dev/null 2>&1; then
+        log_success "SearXNG Web UI: http://localhost:3001"
         return 0
     else
         log_error "SearXNG 无法访问"
@@ -647,7 +650,7 @@ test_mcp() {
 test_json_api() {
     log_step "测试 JSON API"
 
-    local response=$(curl -s "http://localhost:8080/search?q=test&format=json" 2>/dev/null)
+    local response=$(curl -s "http://localhost:3001/search?q=test&format=json" 2>/dev/null)
 
     if echo "$response" | grep -q '"results"'; then
         log_success "JSON API 测试通过"
@@ -704,11 +707,11 @@ show_deployment_info() {
         echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
         echo
         echo -e "${CYAN}访问地址:${NC}"
-        echo -e "  • SearXNG Web UI:    ${GREEN}http://localhost:8080${NC}"
+        echo -e "  • SearXNG Web UI:    ${GREEN}http://localhost:3001${NC}"
         echo -e "  • MCP 服务器:        ${GREEN}http://localhost:3000${NC}"
         echo
         echo -e "${CYAN}测试命令:${NC}"
-        echo -e "  • 测试搜索: ${YELLOW}curl \"http://localhost:8080/search?q=test&format=json\"${NC}"
+        echo -e "  • 测试搜索: ${YELLOW}curl \"http://localhost:3001/search?q=test&format=json\"${NC}"
         echo -e "  • 测试 MCP:  ${YELLOW}curl http://localhost:3000/health${NC}"
         echo -e "  • 查看日志: ${YELLOW}docker logs -f searxng-mcp${NC}"
         echo
@@ -733,7 +736,7 @@ show_test_commands() {
         echo -e "${CYAN}快速测试命令:${NC}"
         echo
         echo -e "# 测试 SearXNG 搜索"
-        echo -e "curl \"http://localhost:8080/search?q=test&format=json\" | jq"
+        echo -e "curl \"http://localhost:3001/search?q=test&format=json\" | jq"
         echo
         echo -e "# 测试 MCP 健康检查"
         echo -e "curl http://localhost:3000/health"

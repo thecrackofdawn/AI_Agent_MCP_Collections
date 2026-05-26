@@ -71,7 +71,7 @@ run_container() {
     log_step "Starting container..."
     docker run -d \
         --name searxng-mcp-test \
-        -p 8080:8080 \
+        -p 3001:3001 \
         -p 3000:3000 \
         -v "$(pwd)/searxng-config:/etc/searxng" \
         searxng-mcp:latest
@@ -88,7 +88,7 @@ wait_for_services() {
 
     while [ $waited -lt $max_wait ]; do
         # Check SearXNG
-        if curl -f -s http://localhost:8080 > /dev/null 2>&1; then
+        if curl -f -s http://localhost:3001 > /dev/null 2>&1; then
             log_info "SearXNG is ready!"
             break
         fi
@@ -103,8 +103,8 @@ wait_for_services() {
 # Test SearXNG
 test_searxng() {
     log_step "Testing SearXNG..."
-    if curl -f -s http://localhost:8080 > /dev/null; then
-        log_info "SearXNG is responding on port 8080"
+    if curl -f -s http://localhost:3001 > /dev/null; then
+        log_info "SearXNG is responding on port 3001"
         return 0
     else
         log_error "SearXNG is not responding"
@@ -165,7 +165,7 @@ main() {
     echo
     log_info "Test complete!"
     echo
-    log_info "Container is running. Access SearXNG at: http://localhost:8080"
+    log_info "Container is running. Access SearXNG at: http://localhost:3001"
     log_info "To stop the container, run: docker stop searxng-mcp-test"
     log_info "To remove the container, run: docker rm searxng-mcp-test"
 

@@ -4,7 +4,7 @@ A Docker image that combines [SearXNG](https://github.com/searxng/searxng) (priv
 
 ## Features
 
-- **🔍 SearXNG**: Privacy-respecting metasearch engine on port 8080
+- **🔍 SearXNG**: Privacy-respecting metasearch engine on port 3001
 - **🤖 MCP Server**: Model Context Protocol server for LLM integration on port 3000
 - **📦 Single Container**: Both services running together with automatic health checks
 - **🌐 HTTP Transport**: MCP server accessible via HTTP for easy client integration
@@ -43,7 +43,7 @@ curl -sSL https://raw.githubusercontent.com/thecrackofdawn/AI_Agent_MCP_Collecti
 ```
 
 **Service Access After Deployment**:
-- 🌐 SearXNG Web UI: http://localhost:8080
+- 🌐 SearXNG Web UI: http://localhost:3001
 - 🔌 MCP Server: http://localhost:3000
 
 📖 **Detailed Documentation**: See [Complete Deployment Guide](DEPLOY_GUIDE.md) for more features, troubleshooting, and advanced usage.
@@ -73,7 +73,7 @@ docker build -t searxng-mcp:latest .
 # Run the container (no volume mounts required)
 docker run -d \
   --name searxng-mcp \
-  -p 8080:8080 \
+  -p 3001:3001 \
   -p 3000:3000 \
   searxng-mcp:latest
 ```
@@ -82,7 +82,7 @@ docker run -d \
 
 ### SearXNG Web Interface
 ```
-http://localhost:8080
+http://localhost:3001
 ```
 
 ### MCP Server (HTTP Transport)
@@ -94,13 +94,13 @@ http://localhost:3000/mcp
 
 ```bash
 # Test SearXNG search (JSON format)
-curl "http://localhost:8080/search?q=test&format=json" | jq
+curl "http://localhost:3001/search?q=test&format=json" | jq
 
 # Test MCP health check
 curl http://localhost:3000/health
 
 # View SearXNG homepage
-curl http://localhost:8080
+curl http://localhost:3001
 
 # Check container status
 docker ps | grep searxng-mcp
@@ -159,7 +159,7 @@ docker-compose restart
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `SEARXNG_URL` | SearXNG instance URL for MCP server | `http://localhost:8080` | No |
+| `SEARXNG_URL` | SearXNG instance URL for MCP server | `http://localhost:3001` | No |
 | `MCP_HTTP_PORT` | HTTP transport port for MCP server | `3000` | No |
 | `AUTH_USERNAME` | Basic auth username for MCP server | - | No |
 | `AUTH_PASSWORD` | Basic auth password for MCP server | - | No |
@@ -191,7 +191,7 @@ For STDIO mode, you can run the MCP server directly:
       "command": "docker",
       "args": [
         "run", "-i", "--rm",
-        "-e", "SEARXNG_URL=http://host.docker.internal:8080",
+        "-e", "SEARXNG_URL=http://host.docker.internal:3001",
         "searxng-mcp:latest"
       ]
     }
@@ -210,7 +210,7 @@ For Claude Code CLI (claude.ai/code), you can configure MCP servers using comman
 claude mcp add searxng --url "http://localhost:3000/mcp"
 
 # Or add with STDIO transport
-claude mcp add searxng --command "docker" --args "run,-i,--rm,-e,SEARXNG_URL=http://host.docker.internal:8080,searxng-mcp:latest"
+claude mcp add searxng --command "docker" --args "run,-i,--rm,-e,SEARXNG_URL=http://host.docker.internal:3001,searxng-mcp:latest"
 
 # List all configured MCP servers
 claude mcp list
@@ -249,7 +249,7 @@ Example configuration for STDIO transport:
       "command": "docker",
       "args": [
         "run", "-i", "--rm",
-        "-e", "SEARXNG_URL=http://host.docker.internal:8080",
+        "-e", "SEARXNG_URL=http://host.docker.internal:3001",
         "searxng-mcp:latest"
       ]
     }
@@ -261,7 +261,7 @@ Example configuration for STDIO transport:
 
 ### Check SearXNG is running
 ```bash
-curl http://localhost:8080
+curl http://localhost:3001
 ```
 
 ### Check MCP server (HTTP endpoint)
@@ -295,7 +295,7 @@ cat ~/.AI_Agent_MCP_Collections/searxng/deploy_*.log
 #### Port Already in Use
 ```bash
 # Check port usage
-lsof -ti:8080
+lsof -ti:3001
 lsof -ti:3000
 
 # Use --clean parameter to automatically stop existing containers
@@ -317,11 +317,11 @@ export HTTPS_PROXY=http://localhost:7890
 
 #### SearXNG Not Starting
 - Check logs: `docker logs searxng-mcp`
-- Verify port 8080 is not already in use: `lsof -ti:8080`
+- Verify port 3001 is not already in use: `lsof -ti:3001`
 - Ensure configuration files are valid: check `searxng-config/settings.yml`
 
 #### Search Function Issues
-- Test API: `curl "http://localhost:8080/search?q=test&format=json"`
+- Test API: `curl "http://localhost:3001/search?q=test&format=json"`
 - View container logs: `docker logs -f searxng-mcp`
 - Check network connection and proxy configuration
 
@@ -329,7 +329,7 @@ export HTTPS_PROXY=http://localhost:7890
 
 #### MCP Server Not Connecting
 - Verify `SEARXNG_URL` is correct
-- Check if SearXNG is responding: `curl http://localhost:8080/search?q=test&format=json`
+- Check if SearXNG is responding: `curl http://localhost:3001/search?q=test&format=json`
 - Test MCP health check: `curl http://localhost:3000/health`
 - View container logs: `docker logs -f searxng-mcp`
 
@@ -353,7 +353,7 @@ export HTTPS_PROXY=http://localhost:7890
 docker build -t searxng-mcp:latest .
 
 # Test the build
-docker run --rm -p 8080:8080 -p 3000:3000 searxng-mcp:latest
+docker run --rm -p 3001:3001 -p 3000:3000 searxng-mcp:latest
 ```
 
 ## Project Structure
@@ -436,10 +436,10 @@ docker-compose restart
 ### Testing and Verification
 ```bash
 # Test SearXNG
-curl http://localhost:8080
+curl http://localhost:3001
 
 # Test search API
-curl "http://localhost:8080/search?q=test&format=json"
+curl "http://localhost:3001/search?q=test&format=json"
 
 # Test MCP health check
 curl http://localhost:3000/health
@@ -470,5 +470,5 @@ curl -sSL https://raw.githubusercontent.com/thecrackofdawn/AI_Agent_MCP_Collecti
 ```
 
 📍 **Access URLs**:
-- SearXNG: http://localhost:8080
+- SearXNG: http://localhost:3001
 - MCP Server: http://localhost:3000

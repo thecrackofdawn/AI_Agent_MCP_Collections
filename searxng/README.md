@@ -6,7 +6,7 @@
 
 ## 功能特性
 
-- **🔍 SearXNG**：运行在 8080 端口的注重隐私的元搜索引擎
+- **🔍 SearXNG**：运行在 3001 端口的注重隐私的元搜索引擎
 - **🤖 MCP 服务器**：运行在 3000 端口的模型上下文协议服务器，用于 LLM 集成
 - **📦 单容器**：两个服务一起运行，具有自动健康检查
 - **🌐 HTTP 传输**：MCP 服务器可通过 HTTP 访问，便于客户端集成
@@ -45,7 +45,7 @@ curl -sSL https://raw.githubusercontent.com/thecrackofdawn/AI_Agent_MCP_Collecti
 ```
 
 **部署后的服务访问**：
-- 🌐 SearXNG Web UI: http://localhost:8080
+- 🌐 SearXNG Web UI: http://localhost:3001
 - 🔌 MCP 服务器: http://localhost:3000
 
 📖 **详细文档**：查看 [完整部署指南](DEPLOY_GUIDE.md) 了解更多功能、故障排查和高级用法。
@@ -75,7 +75,7 @@ docker build -t searxng-mcp:latest .
 # 运行容器（无需挂载卷）
 docker run -d \
   --name searxng-mcp \
-  -p 8080:8080 \
+  -p 3001:3001 \
   -p 3000:3000 \
   searxng-mcp:latest
 ```
@@ -84,7 +84,7 @@ docker run -d \
 
 ### SearXNG Web 界面
 ```
-http://localhost:8080
+http://localhost:3001
 ```
 
 ### MCP 服务器（HTTP 传输）
@@ -96,13 +96,13 @@ http://localhost:3000/mcp
 
 ```bash
 # 测试 SearXNG 搜索（JSON 格式）
-curl "http://localhost:8080/search?q=test&format=json" | jq
+curl "http://localhost:3001/search?q=test&format=json" | jq
 
 # 测试 MCP 健康检查
 curl http://localhost:3000/health
 
 # 查看 SearXNG 主页
-curl http://localhost:8080
+curl http://localhost:3001
 
 # 查看容器状态
 docker ps | grep searxng-mcp
@@ -117,7 +117,7 @@ docker inspect --format='{{.State.Health.Status}}' searxng-mcp
 
 | 变量 | 描述 | 默认值 | 必需 |
 |----------|-------------|---------|----------|
-| `SEARXNG_URL` | MCP 服务器的 SearXNG 实例 URL | `http://localhost:8080` | 否 |
+| `SEARXNG_URL` | MCP 服务器的 SearXNG 实例 URL | `http://localhost:3001` | 否 |
 | `MCP_HTTP_PORT` | MCP 服务器的 HTTP 传输端口 | `3000` | 否 |
 | `AUTH_USERNAME` | MCP 服务器的基本认证用户名 | - | 否 |
 | `AUTH_PASSWORD` | MCP 服务器的基本认证密码 | - | 否 |
@@ -149,7 +149,7 @@ docker inspect --format='{{.State.Health.Status}}' searxng-mcp
       "command": "docker",
       "args": [
         "run", "-i", "--rm",
-        "-e", "SEARXNG_URL=http://host.docker.internal:8080",
+        "-e", "SEARXNG_URL=http://host.docker.internal:3001",
         "searxng-mcp:latest"
       ]
     }
@@ -168,7 +168,7 @@ docker inspect --format='{{.State.Health.Status}}' searxng-mcp
 claude mcp add searxng --url "http://localhost:3000/mcp"
 
 # 或使用 STDIO 传输添加
-claude mcp add searxng --command "docker" --args "run,-i,--rm,-e,SEARXNG_URL=http://host.docker.internal:8080,searxng-mcp:latest"
+claude mcp add searxng --command "docker" --args "run,-i,--rm,-e,SEARXNG_URL=http://host.docker.internal:3001,searxng-mcp:latest"
 
 # 列出所有配置的 MCP 服务器
 claude mcp list
@@ -207,7 +207,7 @@ STDIO 传输配置示例：
       "command": "docker",
       "args": [
         "run", "-i", "--rm",
-        "-e", "SEARXNG_URL=http://host.docker.internal:8080",
+        "-e", "SEARXNG_URL=http://host.docker.internal:3001",
         "searxng-mcp:latest"
       ]
     }
@@ -263,7 +263,7 @@ docker-compose restart
 
 ### 检查 SearXNG 是否正在运行
 ```bash
-curl http://localhost:8080
+curl http://localhost:3001
 ```
 
 ### 检查 MCP 服务器（HTTP 端点）
@@ -297,7 +297,7 @@ cat ~/.AI_Agent_MCP_Collections/searxng/deploy_*.log
 #### 端口被占用
 ```bash
 # 检查端口占用
-lsof -ti:8080
+lsof -ti:3001
 lsof -ti:3000
 
 # 使用 --clean 参数自动停止现有容器
@@ -319,11 +319,11 @@ export HTTPS_PROXY=http://localhost:7890
 
 #### SearXNG 无法启动
 - 检查日志：`docker logs searxng-mcp`
-- 验证 8080 端口未被占用：`lsof -ti:8080`
+- 验证 3001 端口未被占用：`lsof -ti:3001`
 - 确保配置文件有效：检查 `searxng-config/settings.yml`
 
 #### 搜索功能异常
-- 测试 API：`curl "http://localhost:8080/search?q=test&format=json"`
+- 测试 API：`curl "http://localhost:3001/search?q=test&format=json"`
 - 查看容器日志：`docker logs -f searxng-mcp`
 - 检查网络连接和代理配置
 
@@ -331,7 +331,7 @@ export HTTPS_PROXY=http://localhost:7890
 
 #### MCP 服务器无法连接
 - 验证 `SEARXNG_URL` 是否正确
-- 检查 SearXNG 是否响应：`curl http://localhost:8080/search?q=test&format=json`
+- 检查 SearXNG 是否响应：`curl http://localhost:3001/search?q=test&format=json`
 - 测试 MCP 健康检查：`curl http://localhost:3000/health`
 - 查看容器日志：`docker logs -f searxng-mcp`
 
@@ -353,7 +353,7 @@ export HTTPS_PROXY=http://localhost:7890
 docker build -t searxng-mcp:latest .
 
 # 测试构建
-docker run --rm -p 8080:8080 -p 3000:3000 searxng-mcp:latest
+docker run --rm -p 3001:3001 -p 3000:3000 searxng-mcp:latest
 ```
 
 ## 项目结构
@@ -435,10 +435,10 @@ docker-compose restart
 ### 测试和验证
 ```bash
 # 测试 SearXNG
-curl http://localhost:8080
+curl http://localhost:3001
 
 # 测试搜索 API
-curl "http://localhost:8080/search?q=test&format=json"
+curl "http://localhost:3001/search?q=test&format=json"
 
 # 测试 MCP 健康检查
 curl http://localhost:3000/health
@@ -469,5 +469,5 @@ curl -sSL https://raw.githubusercontent.com/thecrackofdawn/AI_Agent_MCP_Collecti
 ```
 
 📍 **访问地址**：
-- SearXNG: http://localhost:8080
+- SearXNG: http://localhost:3001
 - MCP 服务器: http://localhost:3000

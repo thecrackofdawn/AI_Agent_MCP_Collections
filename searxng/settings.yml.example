@@ -22,7 +22,7 @@ search:
 
 # Server settings
 server:
-  port: 8080
+  port: 3001
   bind_address: "0.0.0.0"
   secret_key: "CHANGE_THIS_TO_RANDOM_STRING"
   method: "GET"

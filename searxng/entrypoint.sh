@@ -111,7 +111,7 @@ wait_for_searxng() {
     log_info "Waiting for SearXNG to be ready..."
     local max_attempts=60
     local attempt=1
-    local health_url="http://localhost:8080/health"
+    local health_url="http://localhost:3001/health"
 
     while [ $attempt -le $max_attempts ]; do
         if curl -f -s "$health_url" > /dev/null 2>&1; then
@@ -120,7 +120,7 @@ wait_for_searxng() {
         fi
 
         # Try alternate health check endpoints
-        if curl -f -s "http://localhost:8080/" > /dev/null 2>&1; then
+        if curl -f -s "http://localhost:3001/" > /dev/null 2>&1; then
             log_info "SearXNG web interface is responding!"
             return 0
         fi
@@ -221,7 +221,7 @@ fi
 
 # Verify JSON format support
 log_info "Verifying JSON format API support..."
-json_test_url="http://localhost:8080/search?q=test&format=json"
+json_test_url="http://localhost:3001/search?q=test&format=json"
 if curl -f -s "$json_test_url" > /dev/null 2>&1; then
     # Verify it returns valid JSON
     if curl -f -s "$json_test_url" | python3 -m json.tool > /dev/null 2>&1; then
@@ -235,7 +235,7 @@ fi
 
 # Check if SEARXNG_URL is set, default to localhost if not
 if [ -z "$SEARXNG_URL" ]; then
-    export SEARXNG_URL="http://localhost:8080"
+    export SEARXNG_URL="http://localhost:3001"
     log_info "SEARXNG_URL not set, defaulting to $SEARXNG_URL"
 fi
 

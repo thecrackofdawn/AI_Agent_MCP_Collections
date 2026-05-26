@@ -60,15 +60,16 @@ build_image() {
 
         log_info "Configuring build arguments for proxy..."
 
-        # Convert localhost to Docker host gateway for build
-        BUILD_PROXY_HTTP=$(echo "$PROXY_HTTP" | sed 's|://localhost:|://172.17.0.1:|' | sed 's|://127.0.0.1:|://172.17.0.1:|')
-        BUILD_PROXY_HTTPS=$(echo "$PROXY_HTTPS" | sed 's|://localhost:|://172.17.0.1:|' | sed 's|://127.0.0.1:|://172.17.0.1:|')
+        # Convert localhost to host.docker.internal for build (requires --add-host)
+        BUILD_PROXY_HTTP=$(echo "$PROXY_HTTP" | sed 's|://localhost:|://host.docker.internal:|' | sed 's|://127\.0\.0\.1:|://host.docker.internal:|')
+        BUILD_PROXY_HTTPS=$(echo "$PROXY_HTTPS" | sed 's|://localhost:|://host.docker.internal:|' | sed 's|://127\.0\.0\.1:|://host.docker.internal:|')
 
         log_info "Build proxy arguments:"
         log_info "  HTTP_PROXY=$BUILD_PROXY_HTTP"
         log_info "  HTTPS_PROXY=$BUILD_PROXY_HTTPS"
 
-        build_args="--build-arg BUILD_PROXY_HTTP=$BUILD_PROXY_HTTP"
+        build_args="--add-host=host.docker.internal:host-gateway"
+        build_args="$build_args --build-arg BUILD_PROXY_HTTP=$BUILD_PROXY_HTTP"
         build_args="$build_args --build-arg BUILD_PROXY_HTTPS=$BUILD_PROXY_HTTPS"
     fi
 
@@ -98,7 +99,7 @@ main() {
 
     echo
     log_info "To run the container:"
-    log_info "  docker run -p 8080:8080 -p 3000:3000 searxng-mcp:latest"
+    log_info "  docker run -p 3001:3001 -p 3000:3000 searxng-mcp:latest"
     echo
     log_info "Or with docker-compose:"
     log_info "  docker-compose up -d"
