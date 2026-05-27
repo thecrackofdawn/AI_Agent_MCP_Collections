@@ -56,7 +56,7 @@ After deployment:
 ### Claude Code CLI
 
 ```bash
-claude mcp add searxng --url "http://localhost:3000/mcp"
+claude mcp add --scope user --transport http searxng "http://localhost:3000/mcp"
 ```
 
 ## Testing
