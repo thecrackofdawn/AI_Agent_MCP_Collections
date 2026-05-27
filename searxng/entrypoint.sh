@@ -25,46 +25,8 @@ log_debug() {
     echo -e "${BLUE}[DEBUG]${NC} $1"
 }
 
-# Function to fix localhost proxy addresses for container
-fix_proxy_url() {
-    local proxy_url="$1"
-    # Convert localhost/127.0.0.1 to host.docker.internal for Docker
-    if echo "$proxy_url" | grep -qE 'https?://(localhost|127\.0\.0\.1):'; then
-        # Use Python for URL parsing to avoid sed delimiter issues
-        local fixed_url=$(python3 -c "
-import sys
-url = '$proxy_url'
-# Parse URL
-if '://' in url:
-    protocol, rest = url.split('://', 1)
-    # Extract host and port
-    if '/' in rest:
-        host_part, path = rest.split('/', 1)
-        path = '/' + path
-    else:
-        host_part = rest
-        path = ''
-
-    # Replace localhost/127.0.0.1 with host.docker.internal
-    if ':' in host_part:
-        host, port = host_part.rsplit(':', 1)
-        host = 'host.docker.internal'
-        print(f'{protocol}://{host}:{port}{path}')
-    else:
-        host = 'host.docker.internal'
-        print(f'{protocol}://{host}{path}')
-else:
-    print(url)
-")
-        echo "$fixed_url"
-        return 0
-    fi
-    echo "$proxy_url"
-    return 0
-}
-
 # Function to setup proxy for container
-# This function outputs export statements to stdout and logs to stderr
+# With host network mode, container shares host network stack, no address conversion needed
 setup_container_proxy() {
     local has_proxy=0
 
@@ -75,28 +37,25 @@ setup_container_proxy() {
 
     # Set HTTP proxy
     if [ -n "$HOST_HTTP_PROXY" ]; then
-        local fixed=$(fix_proxy_url "$HOST_HTTP_PROXY")
-        echo "export HTTP_PROXY=\"$fixed\""
-        echo "export http_proxy=\"$fixed\""
-        log_info "HTTP_PROXY=$fixed" >&2
+        echo "export HTTP_PROXY=\"$HOST_HTTP_PROXY\""
+        echo "export http_proxy=\"$HOST_HTTP_PROXY\""
+        log_info "HTTP_PROXY=$HOST_HTTP_PROXY" >&2
     fi
 
     # Set HTTPS proxy
     if [ -n "$HOST_HTTPS_PROXY" ]; then
-        local fixed=$(fix_proxy_url "$HOST_HTTPS_PROXY")
-        echo "export HTTPS_PROXY=\"$fixed\""
-        echo "export https_proxy=\"$fixed\""
-        echo "export HTTPX_PROXY=\"$fixed\""
-        echo "export httpx_proxy=\"$fixed\""
-        log_info "HTTPS_PROXY=$fixed" >&2
+        echo "export HTTPS_PROXY=\"$HOST_HTTPS_PROXY\""
+        echo "export https_proxy=\"$HOST_HTTPS_PROXY\""
+        echo "export HTTPX_PROXY=\"$HOST_HTTPS_PROXY\""
+        echo "export httpx_proxy=\"$HOST_HTTPS_PROXY\""
+        log_info "HTTPS_PROXY=$HOST_HTTPS_PROXY" >&2
     fi
 
     # Set ALL proxy
     if [ -n "$HOST_ALL_PROXY" ]; then
-        local fixed=$(fix_proxy_url "$HOST_ALL_PROXY")
-        echo "export ALL_PROXY=\"$fixed\""
-        echo "export all_proxy=\"$fixed\""
-        log_info "ALL_PROXY=$fixed" >&2
+        echo "export ALL_PROXY=\"$HOST_ALL_PROXY\""
+        echo "export all_proxy=\"$HOST_ALL_PROXY\""
+        log_info "ALL_PROXY=$HOST_ALL_PROXY" >&2
     fi
 
     if [ $has_proxy -eq 1 ]; then
@@ -206,6 +165,89 @@ if [ -f /etc/searxng/settings.yml ]; then
 else
     log_error "No settings.yml found! SearXNG may not start properly."
 fi
+
+# Dynamically apply settings from environment variables
+PROXY_URL="${HOST_HTTPS_PROXY:-$HOST_HTTP_PROXY}"
+
+if [ -f /etc/searxng/settings.yml ]; then
+    if python3 -c "
+import yaml, sys
+
+with open('/etc/searxng/settings.yml', 'r') as f:
+    cfg = yaml.safe_load(f) or {}
+
+# SearXNG always binds to localhost
+cfg.setdefault('server', {})['bind_address'] = '127.0.0.1'
+
+# Set outgoing proxy from environment
+proxy = '$PROXY_URL'
+if proxy:
+    cfg.setdefault('outgoing', {})
+    cfg['outgoing']['proxies'] = {
+        'http': [proxy],
+        'https': [proxy],
+    }
+else:
+    cfg.setdefault('outgoing', {})
+    cfg['outgoing'].pop('proxies', None)
+
+with open('/etc/searxng/settings.yml', 'w') as f:
+    yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
+" 2>/dev/null; then
+        log_info "SearXNG bind_address set to: 127.0.0.1"
+        if [ -n "$PROXY_URL" ]; then
+            log_info "SearXNG outgoing proxy set to: $PROXY_URL"
+        fi
+    else
+        # Fallback: use sed if python yaml not available
+        sed -i "s/bind_address:.*/bind_address: \"127.0.0.1\"/" /etc/searxng/settings.yml
+        log_info "SearXNG bind_address set to: 127.0.0.1 (sed fallback)"
+    fi
+fi
+
+# Configure MCP bind address by patching mcp-searxng index.js
+# Actual code: app.listen(port, () => { ... })
+# We inject host as: app.listen(port, "bind_addr", () => { ... })
+configure_mcp_address() {
+    local bind_addr="${MCP_BIND_ADDRESS:-127.0.0.1}"
+
+    local mcp_bin
+    mcp_bin=$(command -v mcp-searxng 2>/dev/null) || true
+    if [ -z "$mcp_bin" ]; then
+        log_warn "mcp-searxng not found, skip bind address patch"
+        return 0
+    fi
+
+    local index_js
+    index_js=$(readlink -f "$mcp_bin" 2>/dev/null || echo "$mcp_bin")
+    if [ ! -f "$index_js" ]; then
+        log_warn "Cannot locate mcp-searxng entry file: $index_js"
+        return 0
+    fi
+
+    # If binding to 0.0.0.0, no patch needed (Express default is 0.0.0.0)
+    if [ "$bind_addr" = "0.0.0.0" ]; then
+        # Restore: remove any previously injected host argument
+        sed -i -E 's/app\.listen\(port,\s*"[^"]*",/app.listen(port,/' "$index_js"
+        log_info "MCP bind address: 0.0.0.0 (Express default, no patch needed)"
+        return 0
+    fi
+
+    # Restore first: remove any previously injected host argument
+    # app.listen(port, "x.x.x.x", ... -> app.listen(port, ...
+    sed -i -E 's/app\.listen\(port,\s*"[^"]*",/app.listen(port,/' "$index_js"
+
+    # Patch: app.listen(port, ... -> app.listen(port, "bind_addr", ...
+    sed -i -E "s/app\.listen\(port,/app.listen(port, \"$bind_addr\",/" "$index_js"
+
+    # Verify the patch was applied
+    if grep -q "app.listen(port, \"$bind_addr\"" "$index_js"; then
+        log_info "MCP bind address patched to: $bind_addr"
+    else
+        log_error "MCP bind address patch FAILED for: $bind_addr"
+    fi
+}
+configure_mcp_address
 
 # Start SearXNG using searxng-run command in background
 # Use nohup to ensure it continues running

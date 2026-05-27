@@ -5,26 +5,23 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - BUILD_PROXY_HTTP=${HTTP_PROXY:-${http_proxy}}
+        - BUILD_PROXY_HTTPS=${HTTPS_PROXY:-${https_proxy}}
     image: searxng-mcp:latest
     container_name: searxng-mcp
 
-    # Port mappings - bind to localhost only for security
-    ports:
-      - "127.0.0.1:3001:3001"  # SearXNG web UI (localhost only)
-      - "127.0.0.1:3000:3000"  # MCP HTTP transport (localhost only)
-
-    # Extra hosts - allow container to access host machine
-    # host.docker.internal resolves to the host machine IP
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    # Use host network - allows container to directly access host proxy
+    network_mode: host
 
     # Environment variables
     environment:
-      - SEARXNG_URL=http://localhost:3001
+      - SEARXNG_URL=http://127.0.0.1:3001
       - MCP_HTTP_PORT=3000  # Enable HTTP transport for MCP server
+      - MCP_BIND_ADDRESS=${BIND_ADDRESS:-127.0.0.1}
 
-      # Proxy configuration - pass host proxy to container
-      # These will be auto-converted to host.docker.internal if they use localhost/127.0.0.1
+      # Proxy configuration - pass host proxy to container directly (host network mode)
+      # No address conversion needed, container shares host network stack
       - HOST_HTTP_PROXY=${HTTP_PROXY}
       - HOST_HTTPS_PROXY=${HTTPS_PROXY}
       - HOST_ALL_PROXY=${ALL_PROXY}

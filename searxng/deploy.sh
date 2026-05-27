@@ -32,6 +32,7 @@ NO_PROXY=false
 SKIP_HEALTH_CHECK=false
 SHOW_LOGS=false
 CONFIG_ONLY=false
+BIND_ADDRESS="127.0.0.1"
 
 # 代理变量
 PROXY_HTTP=""
@@ -120,6 +121,7 @@ show_help() {
 选项:
   -h, --help              显示此帮助信息
   -c, --clean             强制清理旧部署并重新部署
+  --bind <addr>           MCP 服务绑定地址 (默认: 127.0.0.1, 开放外部访问用 0.0.0.0)
   --no-proxy              禁用代理检测
   --skip-health-check     跳过健康检查
   -v, --verbose           详细输出模式
@@ -131,20 +133,17 @@ show_help() {
   # 从 GitHub 直接执行（会自动下载代码）
   curl -sSL https://raw.githubusercontent.com/thecrackofdawn/AI_Agent_MCP_Collections/main/searxng/deploy.sh | bash
 
-  # 基础部署
+  # 基础部署（仅本地访问）
   ./$SCRIPT_NAME
+
+  # 开放外部访问
+  ./$SCRIPT_NAME --bind 0.0.0.0
 
   # 清理并重新部署
   ./$SCRIPT_NAME --clean
 
-  # 详细模式
-  ./$SCRIPT_NAME --verbose
-
   # 无代理模式
   ./$SCRIPT_NAME --no-proxy
-
-  # 启动后查看日志
-  ./$SCRIPT_NAME --logs
 
 更多信息请访问: $REPO_URL
 EOF
@@ -389,34 +388,20 @@ detect_proxy() {
     fi
 }
 
-convert_proxy_for_build() {
-    if [ -z "$PROXY_HTTP" ]; then
-        return 1
-    fi
-
-    log_info "转换代理地址用于 Docker 构建..."
-
-    # 构建时：localhost → host.docker.internal（通过 --add-host 注入解析）
-    BUILD_PROXY_HTTP=$(echo "$PROXY_HTTP" | sed 's|://localhost:|://host.docker.internal:|' | sed 's|://127\.0\.0\.1:|://host.docker.internal:|')
-    BUILD_PROXY_HTTPS=$(echo "$PROXY_HTTPS" | sed 's|://localhost:|://host.docker.internal:|' | sed 's|://127\.0\.0\.1:|://host.docker.internal:|')
-
-    log_verbose "构建代理:"
-    log_verbose "  HTTP_PROXY=$BUILD_PROXY_HTTP"
-    log_verbose "  HTTPS_PROXY=$BUILD_PROXY_HTTPS"
-
-    return 0
-}
-
 apply_proxy_settings() {
-    if [ -z "$BUILD_PROXY_HTTP" ]; then
+    if [ -z "$PROXY_HTTP" ]; then
         return 0
     fi
 
     log_info "应用代理设置到 Docker 构建..."
 
-    # 导出构建时代代理
-    export BUILD_PROXY_HTTP
-    export BUILD_PROXY_HTTPS
+    # 使用 --network=host 构建，直接使用宿主机代理地址，无需转换
+    BUILD_PROXY_HTTP="$PROXY_HTTP"
+    BUILD_PROXY_HTTPS="$PROXY_HTTPS"
+
+    log_verbose "构建代理:"
+    log_verbose "  HTTP_PROXY=$BUILD_PROXY_HTTP"
+    log_verbose "  HTTPS_PROXY=$BUILD_PROXY_HTTPS"
 
     return 0
 }
@@ -498,10 +483,10 @@ build_image() {
     local build_args=""
     local build_cmd="docker build"
 
-    # 添加 --add-host 让 host.docker.internal 在构建时可用
-    build_args="$build_args --add-host=host.docker.internal:host-gateway"
+    # 使用 --network=host 构建，直接使用宿主机网络栈访问代理
+    build_args="$build_args --network=host"
 
-    # 添加代理参数
+    # 添加代理参数（直接使用宿主机代理地址，无需转换）
     if [ -n "$BUILD_PROXY_HTTP" ]; then
         build_args="$build_args --build-arg BUILD_PROXY_HTTP=$BUILD_PROXY_HTTP"
         build_args="$build_args --build-arg BUILD_PROXY_HTTPS=$BUILD_PROXY_HTTPS"
@@ -554,20 +539,17 @@ deploy_services() {
 
     log_verbose "使用 docker-compose 在: $DEPLOY_DIR"
 
-    # 设置运行时代理环境变量
-    local compose_env=""
+    # 设置运行时环境变量
+    local compose_env="BIND_ADDRESS=$BIND_ADDRESS"
     if [ -n "$PROXY_HTTP" ]; then
-        compose_env="HTTP_PROXY=$PROXY_HTTP HTTPS_PROXY=$PROXY_HTTPS"
+        compose_env="$compose_env HTTP_PROXY=$PROXY_HTTP HTTPS_PROXY=$PROXY_HTTPS"
         log_verbose "使用运行时代理: $PROXY_HTTP"
     fi
+    log_verbose "绑定地址: $BIND_ADDRESS"
 
     # 启动服务
     log_info "正在启动容器..."
-    if [ -n "$compose_env" ]; then
-        eval "$compose_env docker compose up -d"
-    else
-        docker compose up -d
-    fi
+    eval "$compose_env docker compose up -d"
 
     if [ $? -eq 0 ]; then
         log_success "容器已启动: searxng-mcp"
@@ -774,6 +756,14 @@ parse_arguments() {
                 CLEAN_DEPLOY=true
                 shift
                 ;;
+            --bind)
+                if [ -z "$2" ]; then
+                    log_error "--bind 需要指定地址参数"
+                    exit 1
+                fi
+                BIND_ADDRESS="$2"
+                shift 2
+                ;;
             --no-proxy)
                 NO_PROXY=true
                 shift
@@ -838,9 +828,8 @@ main() {
     show_separator
     log_step "步骤 3/9: 检测代理配置"
     if detect_proxy; then
-        convert_proxy_for_build
-        verify_proxy_connection
         apply_proxy_settings
+        verify_proxy_connection
     fi
 
     # 步骤 4: 检查配置文件
